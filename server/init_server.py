@@ -24,6 +24,8 @@ def start():
     data = "{ \"typeFlag\": 1, \"fromUser\": \"divanshu\", \"toUser\": \"shubham\" }"
     ortc_messenger.ortc_client.send("demo_game",data)
 
+    startGame("divanshu", "aman")
+
 
 def on_message(sender, channel, message):
     global ortc_messenger
