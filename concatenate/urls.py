@@ -1,7 +1,7 @@
 from django.conf.urls import patterns, include, url
 from django.contrib import admin
 import serverApi
-import server.views
+import server.init_server
 
 urlpatterns = patterns('',
     # Examples:
@@ -9,7 +9,8 @@ urlpatterns = patterns('',
     # url(r'^blog/', include('blog.urls')),
 
     url(r'^admin/', include(admin.site.urls)),
-    url(r'^subscribe_user/$', serverApi.subscribeUser), # only this used until now. All others dummy
+    url(r'^subscribe_user/$', server.init_server.subscribeUser), # only this used until now. All others dummy
+    url(r'^game_word_entered/$', server.init_server.gameWordEntered),
     # url(r'^invite/$', server.views.inviteFriend ),
     # url(r'^accept_invite/$', server.views.acceptInvite ),
     # url(r'^game_word_send/$', server.views.gameWordSend ),
