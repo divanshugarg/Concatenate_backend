@@ -110,6 +110,7 @@ def gameWordEntered(request):
         # update score here
         ortc_messenger.ortc_client.send(get_channel_for_user(data["toUser"]),json.dumps(data))
         ortc_messenger.ortc_client.send(get_channel_for_user(data["fromUser"]),json.dumps(data))
+    game.last_word = word
     return HttpResponse("Done", content_type='text/html')
 
 # Game Play
