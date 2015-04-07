@@ -6,9 +6,12 @@ import json
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
 import enchant
+import random
 
 ortc_messenger = None
 BASE_FOR_CHANNEL = "user_channel_"
+
+start_words = []
 
 def start():
     global ortc_messenger
@@ -19,10 +22,16 @@ def start():
     while not ortc_messenger.ortc_client.is_connected:
         time.sleep(1)
 
-    ortc_messenger.ortc_client.subscribe("demo_game",True,on_message)
+    ortc_messenger.ortc_client.subscribe("host_game980030692009825",True,on_message)
     time.sleep(2)
     data = "{ \"typeFlag\": 1, \"fromUser\": \"divanshu\", \"toUser\": \"shubham\" }"
     ortc_messenger.ortc_client.send("demo_game",data)
+
+    with open('combined.txt','r') as file:
+        for line in file:
+            for word in line.split():
+                start_words.append(word)
+    print len(start_words)
 
     startGame("divanshu", "aman")
 
@@ -45,9 +54,12 @@ def on_message(sender, channel, message):
         print data["toUser"] # hosted the game
         new_game = startGame(data["fromUser"],data["toUser"])
         send_data = data
-        send_data["typeFlag"] = 6
-        send_data["lastWord"] = new_game.last_word
+        send_data["typeFlag"] = 4
+        send_data["gameWord"] = new_game.last_word
         send_data["gameId"] = new_game.game_id
+        send_data["userTurn"] = new_game.user_playing
+        ortc_messenger.ortc_client.send(get_channel_for_user(data["toUser"]),json.dumps(send_data))
+        send_data["fromUser"], send_data["toUser"] = send_data["toUser"], send_data["fromUser"]
         ortc_messenger.ortc_client.send(get_channel_for_user(data["toUser"]),json.dumps(send_data))
 
     # invite request cancel
@@ -55,10 +67,13 @@ def on_message(sender, channel, message):
         print data["fromUser"]
         print data["toUser"]
 
-    # invite accepted to the person who is hosting
+    # game started request - invite accepted to the person who is hosting
     if data["typeFlag"] == 4:
         print data["fromUser"]
         print data["toUser"]
+        print data["gameId"]
+        print data["gameWord"]
+        print data["userTurn"]
 
     # game word sent
     if data["typeFlag"] == 5:
@@ -118,10 +133,10 @@ def gameWordEntered(request):
 class Game:
     user_1 = None
     user_2 = None
-    last_word = "imagination"
+    last_word = "hello" #random.choice(start_words)
     user_1_score = 0
     user_2_score = 0
-    user_1_playing = True
+    user_playing = None
 
 game_id = 0
 games = {}
@@ -129,16 +144,29 @@ user_opponent = {}
 user_game_id = {}
 
 def startGame(user_id_1,user_id_2):
-    global game, game_id
+    global game, game_id, ortc_messenger
     game = Game()
     game.user_1 = user_id_1
     game.user_2 = user_id_2
-    game_id += 1
+    game.user_playing = user_id_2 if random.getrandbits(1)==1  else user_id_1
+    game_id += 1 # might want to make this thread safe
     games[game_id] = game
     user_opponent[user_id_1] = user_id_2
     user_opponent[user_id_2] = user_id_1
     user_game_id[user_id_1] = game_id
     user_game_id[user_id_2] = game_id
+
+    data = {}
+    data["typeFlag"] = 4
+    data["fromUser"] = user_id_1
+    data["toUser"] = user_id_2
+    data["gameWord"] = game.last_word
+    data["gameId"] = game_id
+
+    ortc_messenger.ortc_client.send(get_channel_for_user(data["toUser"]),json.dumps(data))
+    data["fromUser"], data["toUser"] = data["toUser"], data["fromUser"]
+    ortc_messenger.ortc_client.send(get_channel_for_user(data["toUser"]),json.dumps(data))
+
     return game
 
 def getMaxPrefixMatchingSuffix(next_word,last_word):
