@@ -162,7 +162,7 @@ def startGame(user_id_1,user_id_2):
     data["typeFlag"] = 4
     data["fromUser"] = user_id_1
     data["toUser"] = user_id_2
-    data["gameWord"] = game.last_word
+    data["gameWord"] = game.last_word.upper()
     data["gameId"] = game_id
     data["userTurn"] = game.user_playing
 
