@@ -52,15 +52,7 @@ def on_message(sender, channel, message):
     if data["typeFlag"] == 2:
         print data["fromUser"] # joining the game
         print data["toUser"] # hosted the game
-        new_game = startGame(data["fromUser"],data["toUser"])
-        send_data = data
-        send_data["typeFlag"] = 4
-        send_data["gameWord"] = new_game.last_word
-        send_data["gameId"] = new_game.game_id
-        send_data["userTurn"] = new_game.user_playing
-        ortc_messenger.ortc_client.send(get_channel_for_user(data["toUser"]),json.dumps(send_data))
-        send_data["fromUser"], send_data["toUser"] = send_data["toUser"], send_data["fromUser"]
-        ortc_messenger.ortc_client.send(get_channel_for_user(data["toUser"]),json.dumps(send_data))
+        startGame(data["fromUser"],data["toUser"])
 
     # invite request cancel
     if data["typeFlag"] == 3:
@@ -81,6 +73,7 @@ def on_message(sender, channel, message):
         print data["toUser"]
         print data["gameId"]
         print data["gameWord"]
+        processGameWord(data)
 
     # game over request
     if data["typeFlag"] == 6:
@@ -105,6 +98,7 @@ dictionary = enchant.Dict("en_US")
 @csrf_exempt
 def subscribeUser(request):
     subscribe_user_to_channel(request.body)
+    print "subscribing to : " + str(request.body)
     return HttpResponse("Done", content_type='text/html')
 
 @csrf_exempt
@@ -130,10 +124,18 @@ def gameWordEntered(request):
 
 # Game Play
 
+def processGameWord(data):
+    global games, ortc_messenger
+    game = games[data["gameId"]]
+    word = data["gameWord"]
+    # update score here
+    game.last_word = word
+
+
 class Game:
     user_1 = None
     user_2 = None
-    last_word = "hello" #random.choice(start_words)
+    last_word = "hello" # random.choice()
     user_1_score = 0
     user_2_score = 0
     user_playing = None
@@ -162,6 +164,7 @@ def startGame(user_id_1,user_id_2):
     data["toUser"] = user_id_2
     data["gameWord"] = game.last_word
     data["gameId"] = game_id
+    data["userTurn"] = game.user_playing
 
     ortc_messenger.ortc_client.send(get_channel_for_user(data["toUser"]),json.dumps(data))
     data["fromUser"], data["toUser"] = data["toUser"], data["fromUser"]
