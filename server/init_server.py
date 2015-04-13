@@ -15,6 +15,11 @@ start_words = []
 
 def start():
     global ortc_messenger
+    with open('combined.txt','r') as file:
+        for line in file:
+            for word in line.split():
+                start_words.append(word.upper())
+    print len(start_words)
     ortc_messenger = messaging.Messaging()
 
     while not ortc_messenger.ortc_client:
@@ -27,13 +32,7 @@ def start():
     data = "{ \"typeFlag\": 1, \"fromUser\": \"divanshu\", \"toUser\": \"shubham\" }"
     ortc_messenger.ortc_client.send("demo_game",data)
 
-    with open('combined.txt','r') as file:
-        for line in file:
-            for word in line.split():
-                start_words.append(word)
-    print len(start_words)
-
-    startGame("divanshu", "aman")
+    # startGame("divanshu", "aman")
 
 
 def on_message(sender, channel, message):
@@ -73,6 +72,7 @@ def on_message(sender, channel, message):
         print data["toUser"]
         print data["gameId"]
         print data["gameWord"]
+        print data["myScore"]
         processGameWord(data)
 
     # game over request
@@ -101,6 +101,7 @@ def subscribeUser(request):
     print "subscribing to : " + str(request.body)
     return HttpResponse("Done", content_type='text/html')
 
+# not using in the present version
 @csrf_exempt
 def gameWordEntered(request):
     global games, ortc_messenger
@@ -128,14 +129,22 @@ def processGameWord(data):
     global games, ortc_messenger
     game = games[data["gameId"]]
     word = data["gameWord"]
-    # update score here
-    game.last_word = word
+
+    if data["fromUser"] == games[data["gameId"]].user_1:
+        games[data["gameId"]].user_1_score = max(games[data["gameId"]].user_1_score, data["myScore"])
+    if data["fromUser"] == games[data["gameId"]].user_2:
+        games[data["gameId"]].user_2_score = max(games[data["gameId"]].user_2_score, data["myScore"])
+    print str(games[data["gameId"]].user_1_score) + " " + str(games[data["gameId"]].user_2_score)
+
+    games[data["gameId"]].last_word = word
 
 
 class Game:
+    def __init__(self,str):
+        self.last_word = str
     user_1 = None
     user_2 = None
-    last_word = "hello" # random.choice()
+    last_word = "HELLO"
     user_1_score = 0
     user_2_score = 0
     user_playing = None
@@ -147,7 +156,7 @@ user_game_id = {}
 
 def startGame(user_id_1,user_id_2):
     global game, game_id, ortc_messenger
-    game = Game()
+    game = Game(random.choice(start_words))
     game.user_1 = user_id_1
     game.user_2 = user_id_2
     game.user_playing = user_id_2 if random.getrandbits(1)==1  else user_id_1
