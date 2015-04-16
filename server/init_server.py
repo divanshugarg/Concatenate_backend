@@ -27,13 +27,14 @@ def start():
     while not ortc_messenger.ortc_client.is_connected:
         time.sleep(1)
 
-    ortc_messenger.ortc_client.subscribe("host_game980030692009825",True,on_message)
-    time.sleep(2)
-    data = "{ \"typeFlag\": 1, \"fromUser\": \"divanshu\", \"toUser\": \"shubham\" }"
-    ortc_messenger.ortc_client.send("demo_game",data)
+    # ortc_messenger.ortc_client.subscribe("host_game980030692009825",True,on_message)
+    # time.sleep(2)
+    # data = "{ \"typeFlag\": 1, \"fromUser\": \"divanshu\", \"toUser\": \"shubham\" }"
+    # ortc_messenger.ortc_client.send("demo_game",data)
+    #
+    # # startGame("divanshu", "aman")
 
-    # startGame("divanshu", "aman")
-
+waiting_for = {}
 
 def on_message(sender, channel, message):
     global ortc_messenger
@@ -51,7 +52,12 @@ def on_message(sender, channel, message):
     if data["typeFlag"] == 2:
         print data["fromUser"] # joining the game
         print data["toUser"] # hosted the game
-        startGame(data["fromUser"],data["toUser"])
+        if data["toUser"] in waiting_for and waiting_for[data["toUser"]] == data["fromUser"]:
+            startGame(data["fromUser"],data["toUser"])
+        else:
+            # the waiting user will wait for 5-10 seconds, else opponent left.
+            # nowhere invaldiated for now. Might want to improve that.
+            waiting_for[data["fromUser"]] = data["toUser"]
 
     # invite request cancel
     if data["typeFlag"] == 3:
