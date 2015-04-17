@@ -86,9 +86,18 @@ def on_message(sender, channel, message):
         print data["fromUser"]
         print data["toUser"]
         print data["gameId"]
-        print data["gameWord"]
         # send a message to notify score and the winner to both the users!
         # unmap the gaming key-value pairs
+        # update score in db
+
+    # word time over request
+    if data["typeFlag"] == 7:
+        print data["fromUser"]
+        print data["toUser"]
+        print data["gameId"]
+        print data["userTurn"]
+        sendGameOverRequest(data)
+
 
 def subscribe_user_to_channel(user_id):
     global ortc_messenger
@@ -133,7 +142,6 @@ def gameWordEntered(request):
 
 def processGameWord(data):
     global games, ortc_messenger
-    game = games[data["gameId"]]
     word = data["gameWord"]
 
     if data["fromUser"] == games[data["gameId"]].user_1:
@@ -143,6 +151,18 @@ def processGameWord(data):
     print str(games[data["gameId"]].user_1_score) + " " + str(games[data["gameId"]].user_2_score)
 
     games[data["gameId"]].last_word = word
+    games[data["gameId"]].user_playing = data["toUser"]
+
+def sendGameOverRequest(data):
+    global games, ortc_messenger
+    if games[data["gameId"]].user_playing == data["userTurn"]:
+        new_data = {}
+        new_data["typeFlag"] = 6
+        new_data["fromUser"] = data["fromUser"]
+        new_data["toUser"] = data["toUser"]
+        ortc_messenger.ortc_client.send(get_channel_for_user(new_data["toUser"]),json.dumps(new_data))
+        new_data["fromUser"], new_data["toUser"] = new_data["toUser"], new_data["fromUser"]
+        ortc_messenger.ortc_client.send(get_channel_for_user(new_data["toUser"]),json.dumps(new_data))
 
 
 class Game:
