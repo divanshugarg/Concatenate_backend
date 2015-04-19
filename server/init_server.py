@@ -186,7 +186,7 @@ def sendGameOverRequest(data):
         new_data["typeFlag"] = 6
         new_data["fromUser"] = data["fromUser"]
         new_data["toUser"] = data["toUser"]
-        sendOnBothChannels(new_data["fromUser"], new_data["toUser"], new_data)
+        sendOnBothChannels(new_data)
 
 
 class Game:
@@ -226,7 +226,7 @@ def startGame(user_id_1,user_id_2,isBot):
     data["userTurn"] = game.user_playing
     data["isBot"] = isBot
 
-    sendOnBothChannels(data["fromUser"], data["toUser"], data)
+    sendOnBothChannels(data)
 
     return game
 
@@ -236,10 +236,10 @@ def getMaxPrefixMatchingSuffix(next_word,last_word):
             return len(last_word) - idx
     return 0
 
-def sendOnBothChannels(fromUser, toUser, data):
-    ortc_messenger.ortc_client.send(get_channel_for_user(toUser),json.dumps(data))
-    fromUser, toUser = toUser, fromUser
-    ortc_messenger.ortc_client.send(get_channel_for_user(toUser),json.dumps(data))
+def sendOnBothChannels(data):
+    ortc_messenger.ortc_client.send(get_channel_for_user(data["toUser"]),json.dumps(data))
+    data["fromUser"], data["toUser"] = data["toUser"], data["fromUser"]
+    ortc_messenger.ortc_client.send(get_channel_for_user(data["toUser"]),json.dumps(data))
 
 
 # BOT Game Play
@@ -275,7 +275,7 @@ def addMeToWaitPool(request):
         data["fromUser"] = waiting_person
         data["toUser"] = request.body
         data["isBot"] = False
-        sendOnBothChannels(data["fromUser"], data["toUser"], data)
+        sendOnBothChannels(data)
         waiting_person = ""
     else:
         waiting_person = request.body
