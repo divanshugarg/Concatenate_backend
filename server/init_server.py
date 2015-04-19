@@ -250,8 +250,6 @@ def getRandomWord(request):
     strlen = len(request.body)
     len_suffix = min(int(numpy.random.exponential(2.0)+1.0), strlen)
 
-    print str[-len_suffix:]
-
     search_start = bisect.bisect_left(combined_words,str[-len_suffix:])
     search_end = bisect.bisect_right(combined_words,str[-len_suffix:-1] + chr(ord(str[strlen-1])+1))
 
@@ -260,7 +258,8 @@ def getRandomWord(request):
         search_start = bisect.bisect_left(combined_words,str[-len_suffix:])
         search_end = bisect.bisect_right(combined_words,str[-len_suffix:-1] + chr(ord(str[strlen-1])+1))
 
-    return HttpResponse(combined_words[random.randint(search_start,search_end-1)], content_type='text/html')
+    found = combined_words[random.randint(search_start,search_end-1)]
+    return HttpResponse(found, content_type='text/html')
 
 waiting_person = ""
 
