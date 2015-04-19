@@ -183,12 +183,12 @@ def processGameWord(data):
 
 def sendGameOverRequest(data):
     global games, ortc_messenger
-    if games[data["gameId"]].user_playing == data["userTurn"]:
-        new_data = {}
-        new_data["typeFlag"] = 6
-        new_data["fromUser"] = data["fromUser"]
-        new_data["toUser"] = data["toUser"]
-        sendOnBothChannels(new_data)
+    # if games[data["gameId"]].user_playing == data["userTurn"]:
+    new_data = {}
+    new_data["typeFlag"] = 6
+    new_data["fromUser"] = data["fromUser"]
+    new_data["toUser"] = data["toUser"]
+    sendOnBothChannels(new_data)
 
 
 class Game:
