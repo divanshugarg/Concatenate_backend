@@ -1,6 +1,7 @@
 websocket-client
 django
 pyenchant
+numpy
 
 
 

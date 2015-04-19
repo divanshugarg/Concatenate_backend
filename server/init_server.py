@@ -7,19 +7,38 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
 import enchant
 import random
+import numpy, bisect
 
 ortc_messenger = None
 BASE_FOR_CHANNEL = "user_channel_"
 
+combined_words = []
 start_words = []
+bots = []
 
 def start():
     global ortc_messenger
-    with open('combined.txt','r') as file:
+    with open('start_words.txt','r') as file:
         for line in file:
             for word in line.split():
                 start_words.append(word.upper())
     print len(start_words)
+
+    with open('combined.txt','r') as file:
+        for line in file:
+            for word in line.split():
+                combined_words.append(word.upper())
+    print len(combined_words)
+    combined_words.sort()
+
+    with open('bots.txt','r') as file:
+        for line in file:
+            for bot in line.split():
+                bots.append(bot)
+    print len(bots)
+
+    # print getRandomWord("ABSTRACT")
+
     ortc_messenger = messaging.Messaging()
 
     while not ortc_messenger.ortc_client:
@@ -53,9 +72,9 @@ def on_message(sender, channel, message):
         print data["fromUser"] # joining the game
         print data["toUser"] # hosted the game
         if data["toUser"] in waiting_for and waiting_for[data["toUser"]] == data["fromUser"]:
-            startGame(data["fromUser"],data["toUser"])
+            startGame(data["fromUser"],data["toUser"],False)
         else:
-            # the waiting user will wait for 5-10 seconds, else opponent left.
+            # the waiting user will wait for 15 seconds, else opponent left.
             # nowhere invaldiated for now. Might want to improve that.
             waiting_for[data["fromUser"]] = data["toUser"]
 
@@ -71,6 +90,7 @@ def on_message(sender, channel, message):
         print data["gameId"]
         print data["gameWord"]
         print data["userTurn"]
+        print data["isBot"]
 
     # game word sent
     if data["typeFlag"] == 5:
@@ -97,6 +117,12 @@ def on_message(sender, channel, message):
         print data["gameId"]
         print data["userTurn"]
         sendGameOverRequest(data)
+
+    # quick game matched two players
+    if data["typeFlag"] == 8:
+        print data["fromUser"]
+        print data["toUser"]
+        print data["isBot"]
 
 
 def subscribe_user_to_channel(user_id):
@@ -160,9 +186,7 @@ def sendGameOverRequest(data):
         new_data["typeFlag"] = 6
         new_data["fromUser"] = data["fromUser"]
         new_data["toUser"] = data["toUser"]
-        ortc_messenger.ortc_client.send(get_channel_for_user(new_data["toUser"]),json.dumps(new_data))
-        new_data["fromUser"], new_data["toUser"] = new_data["toUser"], new_data["fromUser"]
-        ortc_messenger.ortc_client.send(get_channel_for_user(new_data["toUser"]),json.dumps(new_data))
+        sendOnBothChannels(new_data["fromUser"], new_data["toUser"], new_data)
 
 
 class Game:
@@ -180,7 +204,7 @@ games = {}
 user_opponent = {}
 user_game_id = {}
 
-def startGame(user_id_1,user_id_2):
+def startGame(user_id_1,user_id_2,isBot):
     global game, game_id, ortc_messenger
     game = Game(random.choice(start_words))
     game.user_1 = user_id_1
@@ -200,10 +224,9 @@ def startGame(user_id_1,user_id_2):
     data["gameWord"] = game.last_word.upper()
     data["gameId"] = game_id
     data["userTurn"] = game.user_playing
+    data["isBot"] = isBot
 
-    ortc_messenger.ortc_client.send(get_channel_for_user(data["toUser"]),json.dumps(data))
-    data["fromUser"], data["toUser"] = data["toUser"], data["fromUser"]
-    ortc_messenger.ortc_client.send(get_channel_for_user(data["toUser"]),json.dumps(data))
+    sendOnBothChannels(data["fromUser"], data["toUser"], data)
 
     return game
 
@@ -213,7 +236,68 @@ def getMaxPrefixMatchingSuffix(next_word,last_word):
             return len(last_word) - idx
     return 0
 
+def sendOnBothChannels(fromUser, toUser, data):
+    ortc_messenger.ortc_client.send(get_channel_for_user(toUser),json.dumps(data))
+    fromUser, toUser = toUser, fromUser
+    ortc_messenger.ortc_client.send(get_channel_for_user(toUser),json.dumps(data))
 
 
+# BOT Game Play
 
+@csrf_exempt
+def getRandomWord(request):
+    str = request.body
+    strlen = len(request.body)
+    len_suffix = min(int(numpy.random.exponential(2.0)+1.0), strlen)
 
+    print str[-len_suffix:]
+
+    search_start = bisect.bisect_left(combined_words,str[-len_suffix:])
+    search_end = bisect.bisect_right(combined_words,str[-len_suffix:-1] + chr(ord(str[strlen-1])+1))
+
+    while search_end == search_start:
+        len_suffix -= 1
+        search_start = bisect.bisect_left(combined_words,str[-len_suffix:])
+        search_end = bisect.bisect_right(combined_words,str[-len_suffix:-1] + chr(ord(str[strlen-1])+1))
+
+    return HttpResponse(combined_words[random.randint(search_start,search_end-1)], content_type='text/html')
+
+waiting_person = ""
+
+@csrf_exempt
+def addMeToWaitPool(request):
+    global waiting_person
+    # add the person to a pool or match to a waiting player
+    if waiting_person != "":
+        # add the waiting_for concept
+        # startGame(waiting_person,request.body,False)
+        data = {}
+        data["typeFlag"] = 8
+        data["fromUser"] = waiting_person
+        data["toUser"] = request.body
+        data["isBot"] = False
+        sendOnBothChannels(data["fromUser"], data["toUser"], data)
+        waiting_person = ""
+    else:
+        waiting_person = request.body
+    return HttpResponse("Done", content_type='text/html')
+
+@csrf_exempt
+def giveMeBot(request):
+    global waiting_person
+    if waiting_person == request.body:
+        bot_id = random.choice(bots)
+        data = {}
+        data["typeFlag"] = 8
+        data["fromUser"] = bot_id
+        data["toUser"] = waiting_person
+        data["isBot"] = True
+        ortc_messenger.ortc_client.send(get_channel_for_user(waiting_person),json.dumps(data))
+        # startGame(waiting_person,bot_id,True)
+        waiting_person = ""
+    return HttpResponse("Done", content_type='text/html')
+
+@csrf_exempt
+def startGameWithBot(request):
+    data = json.loads(request.body)
+    startGame(data["fromUser"], data["toUser"], True)
