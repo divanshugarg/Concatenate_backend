@@ -31,12 +31,6 @@ def start():
     print len(combined_words)
     combined_words.sort()
 
-    with open('bots.txt','r') as file:
-        for line in file:
-            for bot in line.split():
-                bots.append(bot)
-    print len(bots)
-
     # print getRandomWord("ABSTRACT")
 
     ortc_messenger = messaging.Messaging()
@@ -45,6 +39,14 @@ def start():
         time.sleep(1)
     while not ortc_messenger.ortc_client.is_connected:
         time.sleep(1)
+
+
+    with open('bots.txt','r') as file:
+        for line in file:
+            for bot in line.split():
+                bots.append(bot)
+                subscribe_user_to_channel(bot)
+    print len(bots)
 
     # ortc_messenger.ortc_client.subscribe("host_game980030692009825",True,on_message)
     # time.sleep(2)
