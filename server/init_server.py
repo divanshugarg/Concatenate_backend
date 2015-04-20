@@ -18,13 +18,13 @@ bots = []
 
 def start():
     global ortc_messenger
-    with open('start_words.txt','r') as file:
+    with open('../start_words.txt','r') as file:
         for line in file:
             for word in line.split():
                 start_words.append(word.upper())
     print len(start_words)
 
-    with open('combined.txt','r') as file:
+    with open('../combined.txt','r') as file:
         for line in file:
             for word in line.split():
                 combined_words.append(word.upper())
@@ -41,7 +41,7 @@ def start():
         time.sleep(1)
 
 
-    with open('bots.txt','r') as file:
+    with open('../bots.txt','r') as file:
         for line in file:
             for bot in line.split():
                 bots.append(bot)
