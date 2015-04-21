@@ -278,6 +278,7 @@ def addMeToWaitPool(request):
         data["toUser"] = request.body
         data["isBot"] = False
         sendOnBothChannels(data)
+        waiting_person["id"] = -1
     else:
         waiting_person["id"] = request.body
         waiting_person["time"] = time.time()
@@ -292,16 +293,16 @@ def removeMeFromPool(request):
 @csrf_exempt
 def giveMeBot(request):
     global waiting_person
-    if waiting_person == request.body:
+    if waiting_person["id"] == request.body:
         bot_id = random.choice(bots)
         data = {}
         data["typeFlag"] = 8
         data["fromUser"] = bot_id
-        data["toUser"] = waiting_person
+        data["toUser"] = waiting_person["id"]
         data["isBot"] = True
-        ortc_messenger.ortc_client.send(get_channel_for_user(waiting_person),json.dumps(data))
+        ortc_messenger.ortc_client.send(get_channel_for_user(waiting_person["id"]),json.dumps(data))
         # startGame(waiting_person,bot_id,True)
-        waiting_person = ""
+        waiting_person["id"] = -1
     return HttpResponse("Done", content_type='text/html')
 
 @csrf_exempt
