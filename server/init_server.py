@@ -8,6 +8,7 @@ from django.http import HttpResponse
 import enchant
 import random
 import numpy, bisect
+import Queue
 
 ortc_messenger = None
 BASE_FOR_CHANNEL = "user_channel_"
@@ -265,25 +266,28 @@ def getRandomWord(request):
     found = combined_words[random.randint(search_start,search_end-1)]
     return HttpResponse(found, content_type='text/html')
 
-waiting_person = ""
+waiting_person = {"id":-1, "time": 0}
 
 @csrf_exempt
 def addMeToWaitPool(request):
     global waiting_person
-    # add the person to a pool or match to a waiting player
-    if waiting_person != "":
-        # add the waiting_for concept
-        # startGame(waiting_person,request.body,False)
+    if waiting_person["id"] != -1 and time.time() - waiting_person["time"] < 45:
         data = {}
         data["typeFlag"] = 8
-        data["fromUser"] = waiting_person
+        data["fromUser"] = waiting_person["id"]
         data["toUser"] = request.body
         data["isBot"] = False
         sendOnBothChannels(data)
-        waiting_person = ""
     else:
-        waiting_person = request.body
+        waiting_person["id"] = request.body
+        waiting_person["time"] = time.time()
+
     return HttpResponse("Done", content_type='text/html')
+
+def removeMeFromPool(request):
+    global waiting_person
+    if waiting_person["id"] == request.body:
+        waiting_person["id"] = -1
 
 @csrf_exempt
 def giveMeBot(request):
