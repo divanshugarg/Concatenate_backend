@@ -8,9 +8,11 @@ from django.http import HttpResponse
 import enchant
 import random
 import numpy, bisect
+import MySQLdb
 import Queue
 
 ortc_messenger = None
+db = None
 BASE_FOR_CHANNEL = "user_channel_"
 
 combined_words = []
@@ -21,18 +23,7 @@ BASE_DIR = "/home/ubuntu/Concatenate_backend"
 
 def start():
     global ortc_messenger
-    with open(BASE_DIR+'/start_words.txt','r') as file:
-        for line in file:
-            for word in line.split():
-                start_words.append(word.upper())
-    print len(start_words)
-
-    with open(BASE_DIR+'/combined.txt','r') as file:
-        for line in file:
-            for word in line.split():
-                combined_words.append(word.upper())
-    print len(combined_words)
-    combined_words.sort()
+    global db
 
     # print getRandomWord("ABSTRACT")
 
@@ -43,20 +34,38 @@ def start():
     while not ortc_messenger.ortc_client.is_connected:
         time.sleep(1)
 
-
-    with open(BASE_DIR+'/bots.txt','r') as file:
+    with open(BASE_DIR+'/start_words.txt','r') as file:
         for line in file:
-            for bot in line.split():
-                bots.append(bot)
-                subscribe_user_to_channel(bot)
-    print len(bots)
+            for word in line.split():
+                start_words.append(word.upper())
+    print len(start_words)
 
-    # ortc_messenger.ortc_client.subscribe("host_game980030692009825",True,on_message)
-    # time.sleep(2)
-    # data = "{ \"typeFlag\": 1, \"fromUser\": \"divanshu\", \"toUser\": \"shubham\" }"
-    # ortc_messenger.ortc_client.send("demo_game",data)
-    #
-    # # startGame("divanshu", "aman")
+    with open(BASE_DIR+'/combined.txt','r') as file:
+        for line in file:
+            for word in line.split():
+                if len(word) > 1:
+                    combined_words.append(word.upper())
+    print len(combined_words)
+    combined_words.sort()
+
+    # with open(BASE_DIR+'/bots.txt','r') as file:
+    #     for line in file:
+    #         for bot in line.split():
+    #             bots.append(bot)
+    #             subscribe_user_to_channel(bot)
+    # print len(bots)
+
+    db = MySQLdb.connect(host='localhost',
+                         user='root',
+                         passwd='root',
+                         db='concaty')
+
+    cur = db.cursor()
+    cur.execute("SELECT * FROM bots")
+    for row in cur.fetchall():
+        bots.append(row[0])
+        subscribe_user_to_channel(row[0])
+
 
 waiting_for = {}
 
@@ -77,6 +86,7 @@ def on_message(sender, channel, message):
         print data["fromUser"] # joining the game
         print data["toUser"] # hosted the game
         if data["toUser"] in waiting_for and waiting_for[data["toUser"]] == data["fromUser"]:
+            # waiting_for[data["toUser"]] = ""
             startGame(data["fromUser"],data["toUser"],False)
         else:
             # the waiting user will wait for 15 seconds, else opponent left.
@@ -127,6 +137,10 @@ def on_message(sender, channel, message):
     if data["typeFlag"] == 8:
         print data["fromUser"]
         print data["toUser"]
+        print data["fromUserScore"]
+        print data["fromUserName"]
+        print data["toUserScore"]
+        print data["toUserName"]
         print data["isBot"]
 
 
@@ -244,6 +258,9 @@ def getMaxPrefixMatchingSuffix(next_word,last_word):
 def sendOnBothChannels(data):
     ortc_messenger.ortc_client.send(get_channel_for_user(data["toUser"]),json.dumps(data))
     data["fromUser"], data["toUser"] = data["toUser"], data["fromUser"]
+    if "fromUserName" in data:
+        data["fromUserName"], data["toUserName"] = data["toUserName"], data["fromUserName"]
+        data["fromUserScore"], data["toUserScore"] = data["toUserScore"], data["fromUserScore"]
     ortc_messenger.ortc_client.send(get_channel_for_user(data["toUser"]),json.dumps(data))
 
 
@@ -253,12 +270,13 @@ def sendOnBothChannels(data):
 def getRandomWord(request):
     str = request.body
     strlen = len(request.body)
-    len_suffix = min(int(numpy.random.exponential(2.0)+1.0), strlen)
+    # Increasing the variable increases the difficulty of the bot
+    len_suffix = min(int(numpy.random.exponential(1.8)+1.0), strlen)
 
     search_start = bisect.bisect_left(combined_words,str[-len_suffix:])
     search_end = bisect.bisect_right(combined_words,str[-len_suffix:-1] + chr(ord(str[strlen-1])+1))
 
-    while search_end == search_start:
+    while search_end == search_start or (len_suffix == strlen and strlen > 1):
         len_suffix -= 1
         search_start = bisect.bisect_left(combined_words,str[-len_suffix:])
         search_end = bisect.bisect_right(combined_words,str[-len_suffix:-1] + chr(ord(str[strlen-1])+1))
@@ -266,21 +284,29 @@ def getRandomWord(request):
     found = combined_words[random.randint(search_start,search_end-1)]
     return HttpResponse(found, content_type='text/html')
 
-waiting_person = {"id":-1, "time": 0}
+waiting_person = {"id": "", "time": 0, "name": "", "score": ""}
 
 @csrf_exempt
 def addMeToWaitPool(request):
+    # request.body is a json with id, name, score
+    request_data = json.loads(request.body)
     global waiting_person
-    if waiting_person["id"] != -1 and time.time() - waiting_person["time"] < 45:
+    if waiting_person["id"] != "" and time.time() - waiting_person["time"] < 45:
         data = {}
         data["typeFlag"] = 8
         data["fromUser"] = waiting_person["id"]
-        data["toUser"] = request.body
+        data["toUser"] = request_data["id"]
+        data["fromUserName"] = waiting_person["name"]
+        data["fromUserScore"] = waiting_person["score"]
+        data["toUserName"] = request_data["name"]
+        data["toUserScore"] = request_data["score"]
         data["isBot"] = False
         sendOnBothChannels(data)
-        waiting_person["id"] = -1
+        waiting_person["id"] = ""
     else:
-        waiting_person["id"] = request.body
+        waiting_person["id"] = request_data["id"]
+        waiting_person["name"] = request_data["name"]
+        waiting_person["score"] = request_data["score"]
         waiting_person["time"] = time.time()
 
     return HttpResponse("Done", content_type='text/html')
@@ -288,17 +314,25 @@ def addMeToWaitPool(request):
 def removeMeFromPool(request):
     global waiting_person
     if waiting_person["id"] == request.body:
-        waiting_person["id"] = -1
+        waiting_person["id"] = ""
 
 @csrf_exempt
 def giveMeBot(request):
+    global db
     global waiting_person
     if waiting_person["id"] == request.body:
         bot_id = random.choice(bots)
+        cur = db.cursor()
+        cur.execute("SELECT * FROM bots WHERE id = '" + bot_id + "'")
+        bot_details = cur.fetchone()
         data = {}
         data["typeFlag"] = 8
         data["fromUser"] = bot_id
+        data["fromUserName"] = bot_details[1]
+        data["fromUserScore"] = bot_details[2]
         data["toUser"] = waiting_person["id"]
+        data["toUserName"] = waiting_person["name"]
+        data["toUserScore"] = waiting_person["score"]
         data["isBot"] = True
         ortc_messenger.ortc_client.send(get_channel_for_user(waiting_person["id"]),json.dumps(data))
         # startGame(waiting_person,bot_id,True)
