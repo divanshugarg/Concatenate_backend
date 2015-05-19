@@ -343,3 +343,15 @@ def giveMeBot(request):
 def startGameWithBot(request):
     data = json.loads(request.body)
     startGame(data["fromUser"], data["toUser"], True)
+    return HttpResponse("Done", content_type='text/html')
+
+@csrf_exempt
+def updateScoreForBot(request):
+    global db
+    data = json.loads(request.body)
+    bot_id = data["id"]
+    score_increase = data["score"]
+    cur = db.cursor()
+    cur.execute("UPDATE bots SET score=score+" + score_increase + " WHERE id='" + bot_id + "'")
+    print "Score updated for bot with id " + bot_id
+    return HttpResponse("Done", content_type='text/html')
