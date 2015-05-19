@@ -336,7 +336,7 @@ def giveMeBot(request):
         data["isBot"] = True
         ortc_messenger.ortc_client.send(get_channel_for_user(waiting_person["id"]),json.dumps(data))
         # startGame(waiting_person,bot_id,True)
-        waiting_person["id"] = -1
+        waiting_person["id"] = ""
     return HttpResponse("Done", content_type='text/html')
 
 @csrf_exempt
