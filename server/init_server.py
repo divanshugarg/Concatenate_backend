@@ -71,6 +71,7 @@ waiting_for = {}
 
 def on_message(sender, channel, message):
     global ortc_messenger
+    global games
     print 'Message received on ('+channel+'): ' + message
     data = json.loads(message)
     print data
@@ -125,13 +126,16 @@ def on_message(sender, channel, message):
         # unmap the gaming key-value pairs
         # update score in db
 
-    # word time over request
+    # word game over request ( timeout/surrender)
     if data["typeFlag"] == 7:
         print data["fromUser"]
         print data["toUser"]
         print data["gameId"]
         print data["userTurn"]
-        sendGameOverRequest(data)
+        print data["surrender"]
+        if games[data["gameId"]].is_over == 0:
+            games[data["gameId"]].is_over = 1
+            sendGameOverRequest(data)
 
     # quick game matched two players
     if data["typeFlag"] == 8:
@@ -205,6 +209,7 @@ def sendGameOverRequest(data):
     new_data["typeFlag"] = 6
     new_data["fromUser"] = data["fromUser"]
     new_data["toUser"] = data["toUser"]
+    new_data["surrender"] = data["surrender"]
     sendOnBothChannels(new_data)
 
 
@@ -217,6 +222,7 @@ class Game:
     user_1_score = 0
     user_2_score = 0
     user_playing = None
+    is_over = 0
 
 game_id = 0
 games = {}
