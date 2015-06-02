@@ -328,7 +328,9 @@ def removeMeFromPool(request):
 def giveMeBot(request):
     global db
     global waiting_person
+    print "give me bot: " + request.body
     if waiting_person["id"] == request.body:
+        print "giving bot"
         bot_id = random.choice(bots)
         cur = db.cursor()
         cur.execute("SELECT * FROM bots WHERE id = '" + bot_id + "'")
