@@ -296,6 +296,7 @@ waiting_person = {"id": "", "time": 0, "name": "", "score": ""}
 def addMeToWaitPool(request):
     # request.body is a json with id, name, score
     request_data = json.loads(request.body)
+    print "add me to wait pool: " + request.body
     global waiting_person
     if waiting_person["id"] != "" and time.time() - waiting_person["time"] < 45:
         data = {}
@@ -319,6 +320,7 @@ def addMeToWaitPool(request):
 
 def removeMeFromPool(request):
     global waiting_person
+    print "remove me from wait pool: " + request.body
     if waiting_person["id"] == request.body:
         waiting_person["id"] = ""
 
