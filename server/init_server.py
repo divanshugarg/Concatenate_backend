@@ -9,7 +9,7 @@ import enchant
 import random
 import numpy, bisect
 import MySQLdb
-import Queue
+from models import Bots
 
 ortc_messenger = None
 db = None
@@ -55,16 +55,20 @@ def start():
     #             subscribe_user_to_channel(bot)
     # print len(bots)
 
-    db = MySQLdb.connect(host='localhost',
-                         user='root',
-                         passwd='root',
-                         db='concaty')
+    bots_list = Bots.objects.all()
+    for bot in bots_list:
+        bots.append(bot.id)
 
-    cur = db.cursor()
-    cur.execute("SELECT * FROM bots")
-    for row in cur.fetchall():
-        bots.append(row[0])
-        subscribe_user_to_channel(row[0])
+    # db = MySQLdb.connect(host='localhost',
+    #                      user='root',
+    #                      passwd='root',
+    #                      db='concaty')
+
+    # cur = db.cursor()
+    # cur.execute("SELECT * FROM bots")
+    # for row in cur.fetchall():
+    #     bots.append(row[0])
+    #     subscribe_user_to_channel(row[0])
 
 
 waiting_for = {}
@@ -332,14 +336,15 @@ def giveMeBot(request):
     if waiting_person["id"] == request.body:
         print "giving bot"
         bot_id = random.choice(bots)
-        cur = db.cursor()
-        cur.execute("SELECT * FROM bots WHERE id = '" + bot_id + "'")
-        bot_details = cur.fetchone()
+        bot_details = Bots.object.filter(id=bot_id)
+        # cur = db.cursor()
+        # cur.execute("SELECT * FROM bots WHERE id = '" + bot_id + "'")
+        # bot_details = cur.fetchone()
         data = {}
         data["typeFlag"] = 8
         data["fromUser"] = bot_id
-        data["fromUserName"] = bot_details[1]
-        data["fromUserScore"] = bot_details[2]
+        data["fromUserName"] = bot_details.name
+        data["fromUserScore"] = int(bot_details.score)
         data["toUser"] = waiting_person["id"]
         data["toUserName"] = waiting_person["name"]
         data["toUserScore"] = waiting_person["score"]
@@ -361,7 +366,10 @@ def updateScoreForBot(request):
     data = json.loads(request.body)
     bot_id = data["id"]
     score_increase = data["score"]
-    cur = db.cursor()
-    cur.execute("UPDATE bots SET score=score+" + str(score_increase) + " WHERE id='" + bot_id + "'")
+    bot = Bots.object.filter(id=bot_id)
+    bot.score += int(score_increase)
+    bot.save()
+    # cur = db.cursor()
+    # cur.execute("UPDATE bots SET score=score+" + str(score_increase) + " WHERE id='" + bot_id + "'")
     print "Score updated for bot with id " + bot_id
     return HttpResponse("Done", content_type='text/html')
