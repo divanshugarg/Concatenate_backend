@@ -58,6 +58,7 @@ def start():
     bots_list = Bots.objects.all()
     for bot in bots_list:
         bots.append(bot.id)
+        subscribe_user_to_channel(bot.id)
 
     # db = MySQLdb.connect(host='localhost',
     #                      user='root',
