@@ -8,7 +8,6 @@ from django.http import HttpResponse
 import enchant
 import random
 import numpy, bisect
-import MySQLdb
 from models import Bots
 
 ortc_messenger = None
@@ -282,7 +281,7 @@ def getRandomWord(request):
     str = request.body
     strlen = len(request.body)
     # Increasing the variable increases the difficulty of the bot
-    len_suffix = min(int(numpy.random.exponential(1.8)+1.0), strlen)
+    len_suffix = min(int(numpy.random.exponential(2.2)+1.0), strlen)
 
     search_start = bisect.bisect_left(combined_words,str[-len_suffix:])
     search_end = bisect.bisect_right(combined_words,str[-len_suffix:-1] + chr(ord(str[strlen-1])+1))
@@ -303,7 +302,7 @@ def addMeToWaitPool(request):
     request_data = json.loads(request.body)
     print "add me to wait pool: " + request.body
     global waiting_person
-    if waiting_person["id"] != "" and time.time() - waiting_person["time"] < 45:
+    if waiting_person["id"] != "" and waiting_person["id"] != request_data["id"] and time.time() - waiting_person["time"] < 45:
         data = {}
         data["typeFlag"] = 8
         data["fromUser"] = waiting_person["id"]
